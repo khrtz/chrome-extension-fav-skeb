@@ -79,6 +79,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
   });
+
   // お気に入りボタンをクリックしたときの処理
   favoriteButton.addEventListener('click', function() {
     // 現在アクティブなタブの情報を取得する
@@ -99,11 +100,17 @@ document.addEventListener('DOMContentLoaded', function() {
           favorites = result.skebWorkFavorites;
         }
 
-        // 既にお気に入りに登録されている場合は何もしない
         if (favorites.some(function(favorite) {
-          const id = favorite.url.match(/(\d+)\.html/);
-          const currentId = url.match(/(\d+)\.html/);
-          return id && currentId && id[1] === currentId[1];
+          const id = favorite.url.match(/@(\w+)(?:\/works\/(\d+))?/);
+          const currentId = url.match(/@(\w+)(?:\/works\/(\d+))?/);
+
+          if(!currentId[2]) {
+            return id[1] === currentId[1] && !id[2];
+          }
+
+          if(currentId[2]) {
+            return id[1] === currentId[1] && id[2] === currentId[2];
+          }
         })) {
           return;
         }
