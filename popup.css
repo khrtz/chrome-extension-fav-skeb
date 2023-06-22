@@ -18,11 +18,11 @@ body {
     cursor: pointer;
     background-color: #28837f;
     color: white;
-    padding: 15px 32px;
+    padding: 10px 26px;
     text-align: center;
     text-decoration: none;
     display: inline-block;
-    font-size: 16px;
+    font-size: 14px;
     margin: 4px 2px;
     transition-duration: 0.4s;
     border-radius: 4px;
@@ -33,6 +33,15 @@ body {
   
   .button:hover {
     background-color: #257976;
+  }
+
+  #buttonContainer {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  #clearFavoritesButton {
+    margin-bottom: 10px;
   }
   
   ul {
@@ -65,7 +74,7 @@ body {
   }
   
   .deleteButton {
-    background-color: #ff4d4d;
+    background-color: #f14668;
     color: white;
     border: none;
     padding: 8px 16px;
