@@ -1,1 +1,1 @@
-"#chrome-extension-fav-skeb" 
+# chrome-extension-fav-skeb
