@@ -156,6 +156,7 @@
     color: #212529;
     line-height: 1.5;
     padding: 10px;
+    min-height: 500px;
   }
 
   .container {
@@ -227,6 +228,7 @@
     list-style: none;
     padding: 0;
     margin: 0;
+    min-height: 300px;
     max-height: 300px;
     overflow-y: auto;
     border: 1px solid #dee2e6;
@@ -369,7 +371,6 @@
         <button class="deleteButton" on:click={() => deleteFavorite(favorite.url)}>削除</button>
       </li>
     {/each}
-
   </ul>
 
   <div class="pagination">
