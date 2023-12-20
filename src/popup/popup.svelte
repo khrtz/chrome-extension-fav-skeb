@@ -1,94 +1,87 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { currentPage, favorites, filteredFavorites, totalPages } from '../store';
 
-  let favorites: Favorite[] = [];
-  let filteredFavorites: Favorite[] = [];
+  const PAGE_SIZE = 10;
   let hosts: Set<string> = new Set();
   let currentFilter: string | null = null;
-  const PAGE_SIZE = 10;
-  let currentPage = 1;
-  let totalPages = 1;
 
   onMount(async () => {
-    const result = await chrome.storage.local.get('urlFavrorites');
-    if (result.urlFavrorites) {
-      favorites = result.urlFavrorites;
-      filteredFavorites = favorites;
-      updateHosts(favorites);
+    const result = await chrome.storage.local.get('urlFavorites');
+    if (result.urlFavorites) {
+      favorites.set(result.urlFavorites);
+      updateHosts(result.urlFavorites);
     }
-    updatePagination();
-
   });
 
-  function updatePagination() {
-    totalPages = Math.ceil(filteredFavorites.length / PAGE_SIZE);
-    currentPage = 1;
+  $: {
+    const fav = $favorites;
+    const newFilteredFavorites = currentFilter
+      ? fav.filter(f => new URL(f.url).hostname === currentFilter)
+      : fav;
+    filteredFavorites.set(newFilteredFavorites);
+    totalPages.set(Math.ceil(newFilteredFavorites.length / PAGE_SIZE));
+    updateHosts(fav);
   }
 
-  function changePage(page: number) {
-    currentPage = page;
-  }
-
-  function updateHosts(favorites: Favorite[]) {
+  function updateHosts(fav: Favorite[]) {
     const hostCounts = new Map<string, number>();
-
-    favorites.forEach(favorite => {
+    fav.forEach(favorite => {
       let host = new URL(favorite.url).hostname;
-      // 'twitter.com' と 'x.com' を同一視する
-      if (host === 'twitter.com') {
-        host = 'x.com';
-      }
       hostCounts.set(host, (hostCounts.get(host) || 0) + 1);
     });
-
-    // 3回以上出現するホスト名のみを含むセットを作成
-    hosts = new Set(Array.from(hostCounts).filter(([host, count]) => count >= 3).map(([host]) => host));
+    hosts = new Set(Array.from(hostCounts).filter(([_, count]) => count >= 3).map(([host]) => host));
   }
 
   function filterByHost(host: string | null) {
     currentFilter = host;
-    filteredFavorites = host ? favorites.filter(favorite => new URL(favorite.url).hostname === host) : favorites;
+    currentPage.set(1);
   }
 
-  async function clearFavorites() {
-    await chrome.storage.local.remove('urlFavrorites');
-    favorites = [];
-    filteredFavorites = [];
-    hosts.clear();
-  }
-
-  async function deleteFavorite(url: string) {
-    favorites = favorites.filter(favorite => favorite.url !== url);
-    filteredFavorites = favorites.filter(favorite => !currentFilter || new URL(favorite.url).hostname === currentFilter);
-    updateHosts(favorites);
-    await chrome.storage.local.set({ urlFavrorites: favorites });
-  }
-
-  async function openAllFavorites() {
-    for (const favorite of favorites) {
-      window.open(favorite.url, '_blank');
-    }
+  function changePage(page: number) {
+    currentPage.set(page);
   }
 
   async function addFavorite() {
     const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tabs.length === 0) return;
+
     const tab = tabs[0];
+    if (!tab.title || !tab.url) return;
+
     const newFavorite = { title: tab.title, url: tab.url };
 
-    if (!favorites.some(favorite => favorite.url === newFavorite.url)) {
-      interface Favorite {
-          title: string;
-          url: string;
-      }
+    if ($favorites.some(favorite => favorite.url === newFavorite.url)) {
+      return;
+    }
 
-      const newFavorite: Favorite = { title: tab.title!, url: tab.url! };
-      favorites = [...favorites, newFavorite];
-      filteredFavorites = [...favorites];
-      updateHosts(favorites);
-      await chrome.storage.local.set({ urlFavrorites: favorites });
+    const updatedFavorites = [newFavorite, ...$favorites];
+    favorites.set(updatedFavorites);
+
+    await chrome.storage.local.set({ urlFavorites: updatedFavorites });
+
+    updateHosts(updatedFavorites);
+  }
+
+
+  async function deleteFavorite(url: string) {
+    const updatedFavorites = $favorites.filter(favorite => favorite.url !== url);
+    favorites.set(updatedFavorites);
+    await chrome.storage.local.set({ urlFavorites: updatedFavorites });
+  }
+
+  async function clearFavorites() {
+    favorites.set([]);
+    await chrome.storage.local.remove('urlFavorites');
+  }
+
+  async function openAllFavorites() {
+    for (const favorite of [...$favorites]) {
+      window.open(favorite.url, '_blank');
     }
   }
 
+  
   function generateColor(host: string): string {  
     const normalizedHost = host.replace(/^(www\.)?/, '');
 
@@ -123,11 +116,7 @@
     return (yiq >= 128) ? 'black' : 'white';
   }
 
-  $: filteredFavorites = currentFilter ? favorites.filter(favorite => new URL(favorite.url).hostname === currentFilter) : favorites;
-  $: totalPages = Math.ceil(filteredFavorites.length / PAGE_SIZE);
-  $: currentPage = currentPage > totalPages ? totalPages : currentPage;
-  $: paginatedFavorites = filteredFavorites.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
-
+  $: paginatedFavorites = $filteredFavorites.slice(($currentPage - 1) * PAGE_SIZE, $currentPage * PAGE_SIZE);
 </script>
 
 <style>
@@ -147,12 +136,6 @@
     background-color: #fff;
     border-radius: 8px;
     box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-  }
-
-  h1 {
-    font-size: 16;
-    text-align: center;
-    margin-bottom: 15px;
   }
 
   .button-container {
@@ -221,13 +204,13 @@
   }
 
   .tag-marker {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  margin-right: 8px;
-  flex-shrink: 0;
-}
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 8px;
+    flex-shrink: 0;
+  }
 
   li {
     display: flex;
@@ -333,11 +316,11 @@
   </ul>
 
   <div class="pagination">
-    {#each Array.from({length: totalPages}, (_, i) => i + 1) as page}
+    {#each Array.from({length: $totalPages}, (_, i) => i + 1) as page}
       <button 
-        class="page-button {page === currentPage ? 'active' : ''}" 
-        on:click={() => changePage(page)}
-        disabled={totalPages === 1}>
+        class="page-button {page === $currentPage ? 'active' : ''}"
+        on:click={() => changePage(Number(page))}
+        disabled={$totalPages === 1}>
         {page}
       </button>
     {/each}
