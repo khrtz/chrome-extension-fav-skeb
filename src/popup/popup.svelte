@@ -5,6 +5,7 @@
   const PAGE_SIZE = 10;
   let hosts: Set<string> = new Set();
   let currentFilter: string | null = null;
+  let existingItemHighlighted: string | null = null;
 
   onMount(async () => {
     const result = await chrome.storage.local.get('urlFavorites');
@@ -42,6 +43,16 @@
     currentPage.set(page);
   }
 
+  function normalizeUrl(url: string): string {
+    try {
+      const urlObj = new URL(url);
+      urlObj.hash = '';
+      return urlObj.toString();
+    } catch (e) {
+      return url;
+    }
+  }
+
   async function addFavorite() {
     const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tabs.length === 0) return;
@@ -49,9 +60,25 @@
     const tab = tabs[0];
     if (!tab.title || !tab.url) return;
 
-    const newFavorite = { title: tab.title, url: tab.url };
+    const newFavoriteUrl = normalizeUrl(tab.url);
+    const newFavorite = { title: tab.title, url: newFavoriteUrl };
 
-    if ($favorites.some(favorite => favorite.url === newFavorite.url)) {
+    const existingFavorite = $favorites.find(favorite => normalizeUrl(favorite.url) === newFavoriteUrl);
+    if (existingFavorite) {
+      existingItemHighlighted = existingFavorite.url;
+      currentFilter = null;
+      
+      const pageIndex = Math.floor($favorites.indexOf(existingFavorite) / PAGE_SIZE);
+      currentPage.set(pageIndex + 1);
+
+      setTimeout(() => {
+        const element = document.getElementById("item-" + existingFavorite.url);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
+
+      setTimeout(() => existingItemHighlighted = null, 2000);
       return;
     }
 
@@ -62,7 +89,6 @@
 
     updateHosts(updatedFavorites);
   }
-
 
   async function deleteFavorite(url: string) {
     const updatedFavorites = $favorites.filter(favorite => favorite.url !== url);
@@ -283,6 +309,24 @@
     background-color: #dae0e5;
   }
 
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes glow {
+    0%, 100% { box-shadow: 0 0 5px rgb(37, 150, 255); }
+    50% { box-shadow: 0 0 15px rgb(37, 150, 255); }
+  }
+
+  .blink-item {
+    position: relative;
+    z-index: 1;
+    animation: glow 2s ease infinite;
+    padding: 10px;
+    margin: -10px;
+  }
+
 </style>
 
 <div class="container">
@@ -307,11 +351,11 @@
 
   <ul>
     {#each paginatedFavorites as favorite (favorite.url)}
-      <li>
-        <span class="tag-marker" style="background-color: {generateColor(new URL(favorite.url).hostname)};"></span>
-        <a href={favorite.url} target="_blank" rel="noopener noreferrer">{favorite.title}</a>
-        <button class="deleteButton" on:click={() => deleteFavorite(favorite.url)}>削除</button>
-      </li>
+    <li id={"item-" + favorite.url} class:blink-item={favorite.url === existingItemHighlighted}>
+      <span class="tag-marker" style="background-color: {generateColor(new URL(favorite.url).hostname)};"></span>
+      <a href={favorite.url} target="_blank" rel="noopener noreferrer">{favorite.title}</a>
+      <button class="deleteButton" on:click={() => deleteFavorite(favorite.url)}>削除</button>
+    </li>
     {/each}
   </ul>
 
