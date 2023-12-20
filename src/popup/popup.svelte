@@ -6,6 +6,7 @@
   let hosts: Set<string> = new Set();
   let currentFilter: string | null = null;
   let existingItemHighlighted: string | null = null;
+  let newItemAdded: string | null = null;
 
   onMount(async () => {
     const result = await chrome.storage.local.get('urlFavorites');
@@ -88,6 +89,9 @@
     await chrome.storage.local.set({ urlFavorites: updatedFavorites });
 
     updateHosts(updatedFavorites);
+    newItemAdded = newFavorite.url;
+    setTimeout(() => newItemAdded = null, 2000);
+
   }
 
   async function deleteFavorite(url: string) {
@@ -187,8 +191,8 @@
   .button:focus {
     background-color: #0056b3;
     border-color: #0056b3;
-    outline: 3px solid #ffbf47;
-    outline-offset: 2px;
+    box-shadow: 0 0 0 3px #ffbf47;
+    border-radius: 4px;
   }
 
   .button:hover {
@@ -265,9 +269,11 @@
 
   a:focus,
   a:hover {
+    padding: 4px;
     text-decoration: underline;
     outline: 3px solid #1372e6;
     outline-offset: 2px;
+    border-radius: 4px;
   }
 
   .deleteButton {
@@ -319,6 +325,10 @@
     50% { box-shadow: 0 0 15px rgb(37, 150, 255); }
   }
 
+  .new-item {
+    animation: fadeIn 1s ease;
+  }
+
   .blink-item {
     position: relative;
     z-index: 1;
@@ -351,12 +361,15 @@
 
   <ul>
     {#each paginatedFavorites as favorite (favorite.url)}
-    <li id={"item-" + favorite.url} class:blink-item={favorite.url === existingItemHighlighted}>
-      <span class="tag-marker" style="background-color: {generateColor(new URL(favorite.url).hostname)};"></span>
-      <a href={favorite.url} target="_blank" rel="noopener noreferrer">{favorite.title}</a>
-      <button class="deleteButton" on:click={() => deleteFavorite(favorite.url)}>削除</button>
-    </li>
+      <li id={"item-" + favorite.url}
+          class:blink-item={favorite.url === existingItemHighlighted}
+          class:new-item={newItemAdded === favorite.url}>
+        <span class="tag-marker" style="background-color: {generateColor(new URL(favorite.url).hostname)};"></span>
+        <a href={favorite.url} target="_blank" rel="noopener noreferrer">{favorite.title}</a>
+        <button class="deleteButton" on:click={() => deleteFavorite(favorite.url)}>削除</button>
+      </li>
     {/each}
+
   </ul>
 
   <div class="pagination">
