@@ -5,7 +5,7 @@
   let filteredFavorites: Favorite[] = [];
   let hosts: Set<string> = new Set();
   let currentFilter: string | null = null;
-  const PAGE_SIZE = 5;
+  const PAGE_SIZE = 10;
   let currentPage = 1;
   let totalPages = 1;
 
