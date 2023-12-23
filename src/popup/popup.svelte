@@ -164,35 +164,47 @@
 
   async function importFavorites() {
     const urlArray = importText.split('\n').filter(url => url.trim() !== '' && isValidURL(url));
-    const newFavorites = await Promise.all(urlArray.map(async url => {
-      const title = await fetchTitle(url);
-      return { url, title };
-    }));
+    let newFavorites = [];
 
-    const currentFavorites = $favorites;
-    let updatedFavorites: Favorite[] = [...currentFavorites, ...(newFavorites as Favorite[])];
+    for (const url of urlArray) {
+      const title = await fetchTitle(url);
+      if (typeof title === 'string') {
+        newFavorites.push({ url, title });
+      } else {
+        console.error(`Failed to fetch title for url ${url}`);
+      }
+    }
+
+    const updatedFavorites = [...newFavorites, ...$favorites];
 
     favorites.set(updatedFavorites);
     await chrome.storage.local.set({ urlFavorites: updatedFavorites });
     showImport = false;
     importText = '';
-  }
+}
 
-  async function fetchTitle(url: string) {
+async function fetchTitle(url: string) {
     return new Promise((resolve, reject) => {
-      chrome.tabs.create({ url, active: false }, (tab) => {
-        chrome.tabs.onUpdated.addListener(function listener (tabId, info) {
-          if (info.status === 'complete' && tabId === tab.id) {
-            chrome.tabs.get(tabId, function(tab) {
-              resolve(tab.title);
-              chrome.tabs.remove(tabId);
-              chrome.tabs.onUpdated.removeListener(listener);
-            });
-          }
+        chrome.tabs.create({ url, active: false }, tab => {
+            const listener = (tabId: number, info: chrome.tabs.TabChangeInfo) => {
+                if (info.status === 'complete' && tabId === tab.id) {
+                    setTimeout(() => {
+                        chrome.tabs.get(tabId, updatedTab => {
+                            if (updatedTab.title) {
+                                resolve(updatedTab.title);
+                            } else {
+                                reject(new Error(`Failed to fetch title for ${url}`));
+                            }
+                            chrome.tabs.remove(tabId);
+                            chrome.tabs.onUpdated.removeListener(listener);
+                        });
+                    }, 1500);
+                }
+            };
+            chrome.tabs.onUpdated.addListener(listener);
         });
-      });
     });
-  }
+}
 
   function isValidURL(url: string) {
     try {
