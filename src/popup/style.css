@@ -5,9 +5,9 @@
     line-height: 1.5;
     padding: 10px;
     min-height: 500px;
-  }
+}
 
-  .container {
+.container {
     max-width: 340px;
     min-width: 340px;
     margin: 0 auto;
@@ -15,16 +15,16 @@
     background-color: #fff;
     border-radius: 8px;
     box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-  }
+}
 
-  .button-container {
+.button-container {
     display: flex;
     justify-content: normal;
     flex-wrap: wrap;
     margin-bottom: 20px;
-  }
+}
 
-  .button {
+.button {
     background-color: #007bff;
     color: white;
     padding: 3px 6px;
@@ -35,27 +35,40 @@
     text-align: center;
     transition: background-color 0.3s, border-color 0.3s;
     margin: 3px;
-  }
+}
 
-  .button:focus {
+.button-container button:hover {
+    background-color: #0056b3;
+    outline: 3px solid #ffbf47;
+    outline-offset: 2px;
+}
+
+.button-container button:focus {
+    background-color: #0056b3;
+    outline: 3px solid #ffbf47;
+    outline-offset: 2px;
+}
+
+.button:focus {
     background-color: #0056b3;
     border-color: #0056b3;
     box-shadow: 0 0 0 3px #ffbf47;
     border-radius: 4px;
-  }
+    outline: none;
+}
 
-  .button:hover {
+.button:hover {
     background-color: #0056b3;
-  }
+}
 
-  .tags {
+.tags {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
     margin-bottom: 20px;
-  }
+}
 
-  .tag {
+.tag {
     background-color: #e9ecef;
     border: 1px solid #dee2e6;
     padding: 5px 10px;
@@ -63,16 +76,16 @@
     cursor: pointer;
     margin: 2px;
     font-size: 14px;
-  }
+}
 
-  .tag:focus,
-  .tag:hover {
+.tag:focus,
+.tag:hover {
     background-color: #dae0e5;
     outline: 3px solid #ffbf47;
     outline-offset: 2px;
-  }
+}
 
-  ul {
+ul {
     list-style: none;
     padding: 0;
     margin: 0;
@@ -81,52 +94,53 @@
     overflow-y: auto;
     border: 1px solid #dee2e6;
     border-radius: 5px;
-  }
+}
 
-  .tag-marker {
+.tag-marker {
     display: inline-block;
     width: 10px;
     height: 10px;
     border-radius: 50%;
     margin-right: 8px;
     flex-shrink: 0;
-  }
+}
 
-  li {
+li {
     display: flex;
     align-items: center;
     padding: 10px;
     border-bottom: 1px solid #dee2e6;
-  }
+}
 
-  li a {
+li a {
     flex-grow: 1;
     margin-right: 10px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-  }
+}
 
-  li:last-child {
+li:last-child {
     border-bottom: none;
-  }
+}
 
-  a {
+a {
     color: #007bff;
     text-decoration: none;
     font-weight: bold;
-  }
+}
 
-  a:focus,
-  a:hover {
+a:focus,
+a:hover {
     padding: 4px;
     text-decoration: underline;
     outline: 3px solid #1372e6;
     outline-offset: 2px;
     border-radius: 4px;
-  }
+    background-color: #eef;
+}
 
-  .deleteButton {
+.deleteButton {
     flex-shrink: 0;
     width: 50px;
     background-color: #f95161;
@@ -136,53 +150,85 @@
     border-radius: 3px;
     cursor: pointer;
     font-size: 12px;
-  }
+}
 
-  .deleteButton:focus,
-  .deleteButton:hover {
+.deleteButton:focus,
+.deleteButton:hover {
     background-color: #b31b2a;
     border-color: #b31b2a;
     outline: 3px solid #ffbf47;
     outline-offset: 2px;
-  }
+}
 
-  .pagination {
+.pagination {
     display: flex;
     justify-content: center;
     margin-top: 20px;
-  }
+}
 
-  .page-button {
+.page-button {
     margin: 0 5px;
     padding: 5px 10px;
     background-color: #e9ecef;
     border: 1px solid #dee2e6;
     border-radius: 3px;
     cursor: pointer;
-  }
+}
 
-  .page-button:hover, .page-button.active {
+.page-button:hover,
+.page-button.active {
     background-color: #dae0e5;
-  }
+}
 
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
 
-  @keyframes glow {
-    0%, 100% { box-shadow: 0 0 5px rgb(37, 150, 255); }
-    50% { box-shadow: 0 0 15px rgb(37, 150, 255); }
-  }
+@keyframes glow {
+    0%,
+    100% {
+        box-shadow: 0 0 5px rgb(37, 150, 255);
+    }
+    50% {
+        box-shadow: 0 0 15px rgb(37, 150, 255);
+    }
+}
 
-  .new-item {
+.new-item {
     animation: fadeIn 1s ease;
-  }
+}
 
-  .blink-item {
+.blink-item {
     position: relative;
     z-index: 1;
     animation: glow 2s ease infinite;
     padding: 10px;
     margin: -10px;
-  }
+}
+
+.icon-button {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    width: 35px;
+    height: 35px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 10px;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.icon-button:hover {
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+}
+
+.icon-button:active {
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}

@@ -10,8 +10,15 @@
   let existingItemHighlighted: string | null = null;
   let newItemAdded: string | null = null;
   let importText = '';
-  let showImport = false;　
+  let showImport = false;
   let showModal = false;
+  
+  let darkMode = localStorage.getItem('darkMode') === 'true';
+
+  function toggleDarkMode() {
+    darkMode = !darkMode;
+    localStorage.setItem('darkMode', String(darkMode));
+  }
 
   async function clearFavorites() {
     showModal = true;
@@ -57,6 +64,15 @@
     filteredFavorites.set(newFilteredFavorites);
     totalPages.set(Math.ceil(newFilteredFavorites.length / PAGE_SIZE));
     updateHosts(fav);
+
+    const elements = document.querySelectorAll('.container, body');
+    elements.forEach(element => {
+      if (darkMode) {
+        element.classList.add('dark-mode');
+      } else {
+        element.classList.remove('dark-mode');
+      }
+    });
   }
 
   function updateHosts(fav: Favorite[]) {
@@ -153,10 +169,7 @@
       return { url, title };
     }));
 
-    // Get the current favorites
     const currentFavorites = $favorites;
-
-    // Combine the current favorites with the new ones
     let updatedFavorites: Favorite[] = [...currentFavorites, ...(newFavorites as Favorite[])];
 
     favorites.set(updatedFavorites);
@@ -237,6 +250,48 @@
   $: paginatedFavorites = $filteredFavorites.slice(($currentPage - 1) * PAGE_SIZE, $currentPage * PAGE_SIZE);
 </script>
 
+<style>
+  :global(body.dark-mode) {
+    background-color: #525252;
+    color: #ccc;
+  }
+
+  :global(.container.dark-mode) {
+    background-color: #1f1f1f;
+    color: #fff;
+  }
+
+  :global(body.dark-mode) a {
+      color: #a3daff;
+  }
+
+  :global(body.dark-mode) .button {
+      background-color: #007bff;
+      color: #fff;
+      border-color: #0056b3;
+  }
+
+  :global(body.dark-mode) a:focus {
+    background-color: #333;
+  }
+
+  :global(body.dark-mode) a:hover {
+    background-color: #5a5858;
+  }
+
+  :global(body.dark-mode) .deleteButton {
+      background-color: #f95161;
+      color: #fff;
+      border-color: #b31b2a;
+  }
+
+  :global(body.dark-mode) .tag {
+      background-color: #555;
+      color: #ccc;
+      border-color: #444;
+  }
+</style>
+
 <div class="container">
   {#if showModal}
       <div
@@ -254,6 +309,9 @@
   {/if}
 
   <div class="button-container">
+    <button class="icon-button" on:click={toggleDarkMode}>
+      <i class="fas fa-lightbulb" style="color: {darkMode ? 'yellow' : 'gray'};"></i>
+    </button>
     <button class="button" on:click={addFavorite}>お気に入り追加</button>
     <button class="button" on:click={openAllFavorites}>すべて開く</button>
     <button class="button" on:click={importOpenTabs}>開いているタブをすべて登録</button>
