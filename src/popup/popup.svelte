@@ -309,11 +309,8 @@ async function fetchTitle(url: string) {
       <div
       class="modal"
       role="dialog"
-      aria-labelledby="modalTitle"
-      aria-describedby="modalDescription"
       bind:this={modal}
     >
-      <h2 id="modalTitle">Confirm Clear</h2>
       <p id="modalDescription">お気に入りをすべて削除しますか？</p>
       <button on:click={confirmClear}>はい</button>
       <button on:click={cancelClear}>いいえ</button>
