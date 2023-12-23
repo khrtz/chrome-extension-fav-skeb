@@ -1,18 +1,51 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { currentPage, favorites, filteredFavorites, totalPages } from '../store';
+  let modal: HTMLElement | null;
+  let previousActiveElement: HTMLElement | null;
 
   const PAGE_SIZE = 10;
   let hosts: Set<string> = new Set();
   let currentFilter: string | null = null;
   let existingItemHighlighted: string | null = null;
   let newItemAdded: string | null = null;
+  let importText = '';
+  let showImport = false;　
+  let showModal = false;
+
+  async function clearFavorites() {
+    showModal = true;
+  }
+
+  async function confirmClear() {
+    favorites.set([]);
+    await chrome.storage.local.set({ urlFavorites: [] });
+    showModal = false;
+  }
+
+  function cancelClear() {
+    showModal = false;
+  }
+
+  function showImportInput() {
+    showImport = true;
+  }
 
   onMount(async () => {
+    previousActiveElement = document.activeElement as HTMLElement | null;
+    if (modal) {
+      modal.focus();
+    }
     const result = await chrome.storage.local.get('urlFavorites');
     if (result.urlFavorites) {
       favorites.set(result.urlFavorites);
       updateHosts(result.urlFavorites);
+    }
+  });
+
+  onDestroy(() => {
+    if (previousActiveElement) {
+      previousActiveElement.focus();
     }
   });
 
@@ -91,7 +124,6 @@
     updateHosts(updatedFavorites);
     newItemAdded = newFavorite.url;
     setTimeout(() => newItemAdded = null, 2000);
-
   }
 
   async function deleteFavorite(url: string) {
@@ -100,17 +132,63 @@
     await chrome.storage.local.set({ urlFavorites: updatedFavorites });
   }
 
-  async function clearFavorites() {
-    favorites.set([]);
-    await chrome.storage.local.remove('urlFavorites');
-  }
-
   async function openAllFavorites() {
-    for (const favorite of [...$favorites]) {
-      window.open(favorite.url, '_blank');
+    const currentFavorites = $favorites;
+    for (let favorite of currentFavorites) {
+      chrome.tabs.create({ url: favorite.url, active: false });
     }
   }
 
+  async function exportLinks() {
+    const urls = $favorites.map(favorite => `<a href="${favorite.url}" target="_blank">${favorite.url}</a>`).join('<br>');
+    const blob = new Blob([urls], {type: 'text/html'});
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+  }
+
+  async function importFavorites() {
+    const urlArray = importText.split('\n').filter(url => url.trim() !== '' && isValidURL(url));
+    const newFavorites = await Promise.all(urlArray.map(async url => {
+      const title = await fetchTitle(url);
+      return { url, title };
+    }));
+
+    // Get the current favorites
+    const currentFavorites = $favorites;
+
+    // Combine the current favorites with the new ones
+    let updatedFavorites: Favorite[] = [...currentFavorites, ...(newFavorites as Favorite[])];
+
+    favorites.set(updatedFavorites);
+    await chrome.storage.local.set({ urlFavorites: updatedFavorites });
+    showImport = false;
+    importText = '';
+  }
+
+  async function fetchTitle(url: string) {
+    return new Promise((resolve, reject) => {
+      chrome.tabs.create({ url, active: false }, (tab) => {
+        chrome.tabs.onUpdated.addListener(function listener (tabId, info) {
+          if (info.status === 'complete' && tabId === tab.id) {
+            chrome.tabs.get(tabId, function(tab) {
+              resolve(tab.title);
+              chrome.tabs.remove(tabId);
+              chrome.tabs.onUpdated.removeListener(listener);
+            });
+          }
+        });
+      });
+    });
+  }
+
+  function isValidURL(url: string) {
+    try {
+      new URL(url);
+      return true;
+    } catch (_) {
+      return false;  
+    }
+  }
   
   function generateColor(host: string): string {  
     const normalizedHost = host.replace(/^(www\.)?/, '');
@@ -146,205 +224,48 @@
     return (yiq >= 128) ? 'black' : 'white';
   }
 
+  async function importOpenTabs() {
+    chrome.tabs.query({}, async (tabs) => {
+      const newFavorites = tabs.map(tab => ({ url: tab.url, title: tab.title }));
+      const currentFavorites = $favorites;
+      let updatedFavorites: Favorite[] = [...currentFavorites, ...(newFavorites as Favorite[])];
+      favorites.set(updatedFavorites);
+      await chrome.storage.local.set({ urlFavorites: updatedFavorites });
+    });
+  }
+
   $: paginatedFavorites = $filteredFavorites.slice(($currentPage - 1) * PAGE_SIZE, $currentPage * PAGE_SIZE);
 </script>
 
-<style>
-  :global(body) {
-    font-family: 'Arial', sans-serif;
-    background-color: #f8f9fa;
-    color: #212529;
-    line-height: 1.5;
-    padding: 10px;
-    min-height: 500px;
-  }
-
-  .container {
-    max-width: 340px;
-    min-width: 340px;
-    margin: 0 auto;
-    padding: 10px;
-    background-color: #fff;
-    border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-  }
-
-  .button-container {
-    display: flex;
-    justify-content: center;
-    flex-wrap: wrap;
-    margin-bottom: 20px;
-  }
-
-  .button {
-    background-color: #007bff;
-    color: white;
-    padding: 6px 10px;
-    border: 2px solid transparent;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 14px;
-    text-align: center;
-    transition: background-color 0.3s, border-color 0.3s;
-    margin: 5px;
-  }
-
-  .button:focus {
-    background-color: #0056b3;
-    border-color: #0056b3;
-    box-shadow: 0 0 0 3px #ffbf47;
-    border-radius: 4px;
-  }
-
-  .button:hover {
-    background-color: #0056b3;
-  }
-
-  .tags {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    margin-bottom: 20px;
-  }
-
-  .tag {
-    background-color: #e9ecef;
-    border: 1px solid #dee2e6;
-    padding: 5px 10px;
-    border-radius: 3px;
-    cursor: pointer;
-    margin: 2px;
-    font-size: 14px;
-  }
-
-  .tag:focus,
-  .tag:hover {
-    background-color: #dae0e5;
-    outline: 3px solid #ffbf47;
-    outline-offset: 2px;
-  }
-
-  ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    min-height: 300px;
-    max-height: 300px;
-    overflow-y: auto;
-    border: 1px solid #dee2e6;
-    border-radius: 5px;
-  }
-
-  .tag-marker {
-    display: inline-block;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    margin-right: 8px;
-    flex-shrink: 0;
-  }
-
-  li {
-    display: flex;
-    align-items: center;
-    padding: 10px;
-    border-bottom: 1px solid #dee2e6;
-  }
-
-  li a {
-    flex-grow: 1;
-    margin-right: 10px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  li:last-child {
-    border-bottom: none;
-  }
-
-  a {
-    color: #007bff;
-    text-decoration: none;
-    font-weight: bold;
-  }
-
-  a:focus,
-  a:hover {
-    padding: 4px;
-    text-decoration: underline;
-    outline: 3px solid #1372e6;
-    outline-offset: 2px;
-    border-radius: 4px;
-  }
-
-  .deleteButton {
-    flex-shrink: 0;
-    width: 50px;
-    background-color: #f95161;
-    color: white;
-    border: 2px solid transparent;
-    padding: 4px 8px;
-    border-radius: 3px;
-    cursor: pointer;
-    font-size: 12px;
-  }
-
-  .deleteButton:focus,
-  .deleteButton:hover {
-    background-color: #b31b2a;
-    border-color: #b31b2a;
-    outline: 3px solid #ffbf47;
-    outline-offset: 2px;
-  }
-
-  .pagination {
-    display: flex;
-    justify-content: center;
-    margin-top: 20px;
-  }
-
-  .page-button {
-    margin: 0 5px;
-    padding: 5px 10px;
-    background-color: #e9ecef;
-    border: 1px solid #dee2e6;
-    border-radius: 3px;
-    cursor: pointer;
-  }
-
-  .page-button:hover, .page-button.active {
-    background-color: #dae0e5;
-  }
-
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-
-  @keyframes glow {
-    0%, 100% { box-shadow: 0 0 5px rgb(37, 150, 255); }
-    50% { box-shadow: 0 0 15px rgb(37, 150, 255); }
-  }
-
-  .new-item {
-    animation: fadeIn 1s ease;
-  }
-
-  .blink-item {
-    position: relative;
-    z-index: 1;
-    animation: glow 2s ease infinite;
-    padding: 10px;
-    margin: -10px;
-  }
-
-</style>
-
 <div class="container">
+  {#if showModal}
+      <div
+      class="modal"
+      role="dialog"
+      aria-labelledby="modalTitle"
+      aria-describedby="modalDescription"
+      bind:this={modal}
+    >
+      <h2 id="modalTitle">Confirm Clear</h2>
+      <p id="modalDescription">お気に入りをすべて削除しますか？</p>
+      <button on:click={confirmClear}>はい</button>
+      <button on:click={cancelClear}>いいえ</button>
+    </div>
+  {/if}
+
   <div class="button-container">
-    <button class="button" on:click={addFavorite}>Favorite</button>
-    <button class="button" on:click={openAllFavorites}>All Open</button>
+    <button class="button" on:click={addFavorite}>お気に入り追加</button>
+    <button class="button" on:click={openAllFavorites}>すべて開く</button>
+    <button class="button" on:click={importOpenTabs}>開いているタブをすべて登録</button>
+    <button class="button" on:click={exportLinks}>エクスポート</button>
+    {#if showImport}
+      <label for="importTextArea">URLs:</label>
+      <textarea id="importTextArea" bind:value={importText} placeholder="コピペしたURLを入力"></textarea>
+      <button  class="button" on:click={importFavorites}>インポート実行</button>
+    {:else}
+      <button class="button" on:click={showImportInput}>URLインポート</button>
+    {/if}
+
     <button class="button" on:click={clearFavorites}>All Clear</button>
   </div>  
 
