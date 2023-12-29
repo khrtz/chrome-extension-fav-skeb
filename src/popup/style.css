@@ -1,3 +1,5 @@
+/* style.css */
+
 :global(body) {
     font-family: 'Arial', sans-serif;
     background-color: #f8f9fa;
@@ -5,6 +7,46 @@
     line-height: 1.5;
     padding: 10px;
     min-height: 500px;
+}
+
+body.dark-mode {
+    background-color: #525252;
+    color: #ccc;
+}
+
+.container.dark-mode {
+    background-color: #1f1f1f;
+    color: #fff;
+}
+
+body.dark-mode a {
+    color: #a3daff;
+}
+
+body.dark-mode .button {
+    background-color: #007bff;
+    color: #fff;
+    border-color: #0056b3;
+}
+
+body.dark-mode a:focus {
+    background-color: #333;
+}
+
+body.dark-mode a:hover {
+    background-color: #5a5858;
+}
+
+body.dark-mode .deleteButton {
+    background-color: #f95161;
+    color: #fff;
+    border-color: #b31b2a;
+}
+
+body.dark-mode .tag {
+    background-color: #555;
+    color: #ccc;
+    border-color: #444;
 }
 
 .container {
@@ -276,6 +318,19 @@ a:hover {
     display: block;
 }
 
+.speed-dial-placeholder {
+    display: inline-block;
+    width: 32px;
+    height: 32px;
+    background-color: #ddd;
+    color: #333;
+    text-align: center;
+    line-height: 32px;
+    border-radius: 50%;
+    font-size: 16px;
+  }
+  
+
 .delete-dial-button {
     display: none;
 }
@@ -284,3 +339,62 @@ a:hover {
     background-color: #007bff;
     color: white;
 }
+
+.file-upload-container {
+    margin: 10px 0;
+  }
+  
+  .file-input-label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+  }
+  
+  .help-text {
+    display: block;
+    margin-top: 5px;
+    font-size: 0.9em;
+    color: #666;
+  }
+
+input[type="file"] {
+    width: 100%;
+    padding: 10px 15px;
+    border: 2px solid transparent;
+    border-radius: 4px;
+    background-color: #fff;
+    color: #333;
+    font-size: 1em;
+    line-height: 1.5;
+    cursor: pointer;
+    transition: border-color 0.3s, box-shadow 0.3s;
+  }
+  
+  input[type="file"]:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+  }
+  
+  body.dark-mode input[type="file"] {
+    background-color: #2c2c2c;
+    color: #ccc;
+    border-color: #444;
+  }
+  
+  body.dark-mode input[type="file"]:focus {
+    border-color: #1e90ff;
+    box-shadow: 0 0 0 2px rgba(30, 144, 255, 0.25);
+  }
+  
+  .file-upload-container:after {
+    content: attr(data-file);
+    display: block;
+    margin-top: 10px;
+    font-size: 0.9em;
+    color: #666;
+  }
+  
+  body.dark-mode .file-upload-container:after {
+    color: #bbb;
+  }
+  
