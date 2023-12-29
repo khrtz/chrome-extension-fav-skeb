@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { currentPage, favorites, filteredFavorites, totalPages } from '../store';
+  import { currentPage, favorites, filteredFavorites, totalPages, speedDials } from '../store';
   let modal: HTMLElement | null;
   let previousActiveElement: HTMLElement | null;
 
@@ -12,6 +12,9 @@
   let importText = '';
   let showImport = false;
   let showModal = false;
+  let paginationArray: number[] = [];
+
+  $: paginationArray = Array.from({length: $totalPages}, (_, i) => i + 1);
   
   let darkMode = localStorage.getItem('darkMode') === 'true';
 
@@ -48,6 +51,8 @@
       favorites.set(result.urlFavorites);
       updateHosts(result.urlFavorites);
     }
+    const storedSpeedDials = JSON.parse(localStorage.getItem('speedDials') || '[]');
+    speedDials.set(storedSpeedDials);
   });
 
   onDestroy(() => {
@@ -73,6 +78,11 @@
         element.classList.remove('dark-mode');
       }
     });
+    const { start, end } = getPaginationRange($currentPage, $totalPages);
+    paginationArray = [];
+    for (let i = start; i <= end; i++) {
+      paginationArray.push(i);
+    }
   }
 
   function updateHosts(fav: Favorite[]) {
@@ -183,6 +193,35 @@
     importText = '';
 }
 
+async function addSpeedDial() {
+  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (tabs.length === 0) return;
+
+  const tab = tabs[0];
+  if (!tab.url) return;
+
+  const newDial: SpeedDial = { url: tab.url, favicon: tab.favIconUrl };
+
+  speedDials.update(currentDials => {
+    const updatedDials = [...currentDials, newDial];
+    localStorage.setItem('speedDials', JSON.stringify(updatedDials));
+    return updatedDials;
+  });
+}
+
+function deleteSpeedDial(url: string) {
+  speedDials.update(currentDials => {
+    const updatedDials = currentDials.filter(dial => dial.url !== url);
+    localStorage.setItem('speedDials', JSON.stringify(updatedDials));
+    return updatedDials;
+  });
+}
+
+function openLink(url: string) {
+  chrome.tabs.create({ url: url });
+}
+
+
 async function fetchTitle(url: string) {
     return new Promise((resolve, reject) => {
         chrome.tabs.create({ url, active: false }, tab => {
@@ -259,6 +298,26 @@ async function fetchTitle(url: string) {
     });
   }
 
+  function getPaginationRange(current: number, total: number) {
+    const range = 2; // 現在のページの前後に表示するページ数
+    let start = Math.max(1, current - range);
+    let end = Math.min(total, current + range);
+
+    // 表示するページ数が5未満の場合の調整
+    const maxPagesToShow = 5;
+    const numOfPages = end - start + 1;
+    if (numOfPages < maxPagesToShow) {
+      if (start > 1) {
+        start = Math.max(1, start - (maxPagesToShow - numOfPages));
+      }
+      if (end < total) {
+        end = Math.min(total, end + (maxPagesToShow - numOfPages));
+      }
+    }
+
+    return { start, end };
+  }
+
   $: paginatedFavorites = $filteredFavorites.slice(($currentPage - 1) * PAGE_SIZE, $currentPage * PAGE_SIZE);
 </script>
 
@@ -317,14 +376,28 @@ async function fetchTitle(url: string) {
     </div>
   {/if}
 
+  <div>
+     <button class="icon-button" on:click={toggleDarkMode}>
+    <i class="fas fa-lightbulb" style="color: {darkMode ? 'yellow' : 'gray'};"></i>
+  </button>
+  </div>
+
+  <div class="speed-dial-grid">
+    {#each $speedDials as dial}
+      <button class="speed-dial-item" type="button" on:click={() => openLink(dial.url)}>
+        <img src={dial.favicon || 'default-icon.png'} class="speed-dial-icon" alt="スピードダイヤル" />
+        <button class="delete-dial-button" on:click={e => { e.stopPropagation(); deleteSpeedDial(dial.url); }} aria-label="削除">×</button>
+      </button>
+    {/each}
+  </div>
+
+  
   <div class="button-container">
-    <button class="icon-button" on:click={toggleDarkMode}>
-      <i class="fas fa-lightbulb" style="color: {darkMode ? 'yellow' : 'gray'};"></i>
-    </button>
     <button class="button" on:click={addFavorite}>お気に入り追加</button>
-    <button class="button" on:click={openAllFavorites}>すべて開く</button>
-    <button class="button" on:click={importOpenTabs}>開いているタブをすべて登録</button>
+    <!-- <button class="button" on:click={openAllFavorites}>すべて開く</button> -->
+    <!-- <button class="button" on:click={importOpenTabs}>開いているタブをすべて登録</button> -->
     <button class="button" on:click={exportLinks}>エクスポート</button>
+    <button class="button" on:click={addSpeedDial}>スピードダイヤル追加</button>
     {#if showImport}
       <label for="importTextArea">URLs:</label>
       <textarea id="importTextArea" bind:value={importText} placeholder="コピペしたURLを入力"></textarea>
@@ -362,13 +435,23 @@ async function fetchTitle(url: string) {
   </ul>
 
   <div class="pagination">
-    {#each Array.from({length: $totalPages}, (_, i) => i + 1) as page}
-      <button 
-        class="page-button {page === $currentPage ? 'active' : ''}"
-        on:click={() => changePage(Number(page))}
-        disabled={$totalPages === 1}>
-        {page}
-      </button>
-    {/each}
+    {#if $totalPages > 1}
+      {#if $currentPage > 1}
+        <button class="page-button" on:click={() => changePage($currentPage - 1)}>&laquo;</button>
+      {/if}
+  
+      {#each paginationArray as page}
+        <button 
+          class="page-button {page === $currentPage ? 'active' : ''}"
+          on:click={() => changePage(Number(page))}
+        >
+          {page}
+        </button>
+      {/each}
+  
+      {#if $currentPage < $totalPages}
+        <button class="page-button" on:click={() => changePage($currentPage + 1)}>&raquo;</button>
+      {/if}
+    {/if}
   </div>
 </div>
