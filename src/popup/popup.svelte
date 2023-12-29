@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { currentPage, favorites, filteredFavorites, totalPages, speedDials } from '../store';
+  import Pagination from '../pagination/pagination.svelte';
+  import DataManager from '../datamanager/datamanager.svelte';
   let modal: HTMLElement | null;
   let previousActiveElement: HTMLElement | null;
 
@@ -9,12 +11,7 @@
   let currentFilter: string | null = null;
   let existingItemHighlighted: string | null = null;
   let newItemAdded: string | null = null;
-  let importText = '';
-  let showImport = false;
   let showModal = false;
-  let paginationArray: number[] = [];
-
-  $: paginationArray = Array.from({length: $totalPages}, (_, i) => i + 1);
   
   let darkMode = localStorage.getItem('darkMode') === 'true';
 
@@ -37,10 +34,6 @@
     showModal = false;
   }
 
-  function showImportInput() {
-    showImport = true;
-  }
-
   onMount(async () => {
     previousActiveElement = document.activeElement as HTMLElement | null;
     if (modal) {
@@ -51,8 +44,10 @@
       favorites.set(result.urlFavorites);
       updateHosts(result.urlFavorites);
     }
-    const storedSpeedDials = JSON.parse(localStorage.getItem('speedDials') || '[]');
-    speedDials.set(storedSpeedDials);
+    let storedSpeedDials = await chrome.storage.local.get('speedDials');
+    if (storedSpeedDials && storedSpeedDials.speedDials) {
+      speedDials.set(storedSpeedDials.speedDials);
+    }
   });
 
   onDestroy(() => {
@@ -78,11 +73,6 @@
         element.classList.remove('dark-mode');
       }
     });
-    const { start, end } = getPaginationRange($currentPage, $totalPages);
-    paginationArray = [];
-    for (let i = start; i <= end; i++) {
-      paginationArray.push(i);
-    }
   }
 
   function updateHosts(fav: Favorite[]) {
@@ -172,88 +162,35 @@
     window.open(url, '_blank');
   }
 
-  async function importFavorites() {
-    const urlArray = importText.split('\n').filter(url => url.trim() !== '' && isValidURL(url));
-    let newFavorites = [];
+  async function addSpeedDial() {
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tabs.length === 0) return;
 
-    for (const url of urlArray) {
-      const title = await fetchTitle(url);
-      if (typeof title === 'string') {
-        newFavorites.push({ url, title });
-      } else {
-        console.error(`Failed to fetch title for url ${url}`);
-      }
-    }
+    const tab = tabs[0];
+    if (!tab.url) return;
 
-    const updatedFavorites = [...newFavorites, ...$favorites];
+    const newDial: SpeedDial = { url: tab.url, favicon: tab.favIconUrl };
 
-    favorites.set(updatedFavorites);
-    await chrome.storage.local.set({ urlFavorites: updatedFavorites });
-    showImport = false;
-    importText = '';
-}
-
-async function addSpeedDial() {
-  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (tabs.length === 0) return;
-
-  const tab = tabs[0];
-  if (!tab.url) return;
-
-  const newDial: SpeedDial = { url: tab.url, favicon: tab.favIconUrl };
-
-  speedDials.update(currentDials => {
-    const updatedDials = [...currentDials, newDial];
-    localStorage.setItem('speedDials', JSON.stringify(updatedDials));
-    return updatedDials;
-  });
-}
-
-function deleteSpeedDial(url: string) {
-  speedDials.update(currentDials => {
-    const updatedDials = currentDials.filter(dial => dial.url !== url);
-    localStorage.setItem('speedDials', JSON.stringify(updatedDials));
-    return updatedDials;
-  });
-}
-
-function openLink(url: string) {
-  chrome.tabs.create({ url: url });
-}
-
-
-async function fetchTitle(url: string) {
-    return new Promise((resolve, reject) => {
-        chrome.tabs.create({ url, active: false }, tab => {
-            const listener = (tabId: number, info: chrome.tabs.TabChangeInfo) => {
-                if (info.status === 'complete' && tabId === tab.id) {
-                    setTimeout(() => {
-                        chrome.tabs.get(tabId, updatedTab => {
-                            if (updatedTab.title) {
-                                resolve(updatedTab.title);
-                            } else {
-                                reject(new Error(`Failed to fetch title for ${url}`));
-                            }
-                            chrome.tabs.remove(tabId);
-                            chrome.tabs.onUpdated.removeListener(listener);
-                        });
-                    }, 1500);
-                }
-            };
-            chrome.tabs.onUpdated.addListener(listener);
-        });
+    speedDials.update(currentDials => {
+      const updatedDials = [...currentDials, newDial];
+      chrome.storage.local.set({ speedDials: updatedDials });
+      return updatedDials;
     });
-}
-
-  function isValidURL(url: string) {
-    try {
-      new URL(url);
-      return true;
-    } catch (_) {
-      return false;  
-    }
   }
-  
+
+  async function deleteSpeedDial(url: string) {
+    let updatedDials;
+    speedDials.update(currentDials => {
+      updatedDials = currentDials.filter(dial => dial.url !== url);
+      return updatedDials;
+    });
+    await chrome.storage.local.set({ speedDials: updatedDials });
+  }
+
+  function openLink(url: string) {
+    chrome.tabs.create({ url: url });
+  }
+
   function generateColor(host: string): string {  
     const normalizedHost = host.replace(/^(www\.)?/, '');
 
@@ -298,70 +235,8 @@ async function fetchTitle(url: string) {
     });
   }
 
-  function getPaginationRange(current: number, total: number) {
-    const range = 2; // 現在のページの前後に表示するページ数
-    let start = Math.max(1, current - range);
-    let end = Math.min(total, current + range);
-
-    // 表示するページ数が5未満の場合の調整
-    const maxPagesToShow = 5;
-    const numOfPages = end - start + 1;
-    if (numOfPages < maxPagesToShow) {
-      if (start > 1) {
-        start = Math.max(1, start - (maxPagesToShow - numOfPages));
-      }
-      if (end < total) {
-        end = Math.min(total, end + (maxPagesToShow - numOfPages));
-      }
-    }
-
-    return { start, end };
-  }
-
   $: paginatedFavorites = $filteredFavorites.slice(($currentPage - 1) * PAGE_SIZE, $currentPage * PAGE_SIZE);
 </script>
-
-<style>
-  :global(body.dark-mode) {
-    background-color: #525252;
-    color: #ccc;
-  }
-
-  :global(.container.dark-mode) {
-    background-color: #1f1f1f;
-    color: #fff;
-  }
-
-  :global(body.dark-mode) a {
-      color: #a3daff;
-  }
-
-  :global(body.dark-mode) .button {
-      background-color: #007bff;
-      color: #fff;
-      border-color: #0056b3;
-  }
-
-  :global(body.dark-mode) a:focus {
-    background-color: #333;
-  }
-
-  :global(body.dark-mode) a:hover {
-    background-color: #5a5858;
-  }
-
-  :global(body.dark-mode) .deleteButton {
-      background-color: #f95161;
-      color: #fff;
-      border-color: #b31b2a;
-  }
-
-  :global(body.dark-mode) .tag {
-      background-color: #555;
-      color: #ccc;
-      border-color: #444;
-  }
-</style>
 
 <div class="container">
   {#if showModal}
@@ -384,13 +259,19 @@ async function fetchTitle(url: string) {
 
   <div class="speed-dial-grid">
     {#each $speedDials as dial}
-      <button class="speed-dial-item" type="button" on:click={() => openLink(dial.url)}>
-        <img src={dial.favicon || 'default-icon.png'} class="speed-dial-icon" alt="スピードダイヤル" />
-        <button class="delete-dial-button" on:click={e => { e.stopPropagation(); deleteSpeedDial(dial.url); }} aria-label="削除">×</button>
-      </button>
-    {/each}
-  </div>
+    <button class="speed-dial-item" type="button" on:click={() => openLink(dial.url)}>
+      {#if dial.favicon}
+        <img src={dial.favicon} class="speed-dial-icon" alt="{dial.url}のfavicon" />
+      {:else}
+        <span class="speed-dial-placeholder">
+          {dial.url.charAt(0).toUpperCase()}
+        </span>
+      {/if}
+      <button class="delete-dial-button" on:click={e => { e.stopPropagation(); deleteSpeedDial(dial.url); }} aria-label="削除">×</button>
+    </button>
+  {/each}
 
+  </div>
   
   <div class="button-container">
     <button class="button" on:click={addFavorite}>お気に入り追加</button>
@@ -398,16 +279,10 @@ async function fetchTitle(url: string) {
     <!-- <button class="button" on:click={importOpenTabs}>開いているタブをすべて登録</button> -->
     <button class="button" on:click={exportLinks}>エクスポート</button>
     <button class="button" on:click={addSpeedDial}>スピードダイヤル追加</button>
-    {#if showImport}
-      <label for="importTextArea">URLs:</label>
-      <textarea id="importTextArea" bind:value={importText} placeholder="コピペしたURLを入力"></textarea>
-      <button  class="button" on:click={importFavorites}>インポート実行</button>
-    {:else}
-      <button class="button" on:click={showImportInput}>URLインポート</button>
-    {/if}
+    <button class="button" on:click={clearFavorites}>すべて削除</button>
 
-    <button class="button" on:click={clearFavorites}>All Clear</button>
-  </div>  
+    <DataManager />
+  </div>
 
   <div class="tags">
     <button class="tag" on:click={() => filterByHost(null)}>すべて</button>
@@ -434,24 +309,5 @@ async function fetchTitle(url: string) {
     {/each}
   </ul>
 
-  <div class="pagination">
-    {#if $totalPages > 1}
-      {#if $currentPage > 1}
-        <button class="page-button" on:click={() => changePage($currentPage - 1)}>&laquo;</button>
-      {/if}
-  
-      {#each paginationArray as page}
-        <button 
-          class="page-button {page === $currentPage ? 'active' : ''}"
-          on:click={() => changePage(Number(page))}
-        >
-          {page}
-        </button>
-      {/each}
-  
-      {#if $currentPage < $totalPages}
-        <button class="page-button" on:click={() => changePage($currentPage + 1)}>&raquo;</button>
-      {/if}
-    {/if}
-  </div>
+  <Pagination {changePage} />
 </div>
