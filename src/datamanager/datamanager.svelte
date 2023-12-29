@@ -116,12 +116,21 @@
     function showImportInput() {
         showImport = true;
     }
+
+    async function exportLinks() {
+        const urls = $favorites.map(favorite => `<a href="${favorite.url}" target="_blank">${favorite.url}</a>`).join('<br>');
+        const blob = new Blob([urls], {type: 'text/html'});
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+    }
+
 </script>
 
 <div>
+    <button class="button" on:click={exportLinks}>URLリンク生成</button>
     {#if showImport}
         <label for="importTextArea">URLs:</label>
-        <textarea id="importTextArea" bind:value={importText} placeholder="コピペしたURLを入力"></textarea>
+        <textarea id="importTextArea" bind:value={importText} placeholder="URLを入力(改行して複数可能)"></textarea>
         <button class="button" on:click={importFavorites}>インポート実行</button>
     {:else}
         <button class="button" on:click={showImportInput}>URLインポート</button>

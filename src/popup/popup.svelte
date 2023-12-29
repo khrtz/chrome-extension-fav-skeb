@@ -44,9 +44,22 @@
       favorites.set(result.urlFavorites);
       updateHosts(result.urlFavorites);
     }
+    // SpeedDial の処理
     let storedSpeedDials = await chrome.storage.local.get('speedDials');
-    if (storedSpeedDials && storedSpeedDials.speedDials) {
+    if (storedSpeedDials && storedSpeedDials.speedDials && storedSpeedDials.speedDials.length > 0) {
       speedDials.set(storedSpeedDials.speedDials);
+    } else {
+      // SpeedDial が空の場合、デフォルト値を設定
+      const defaultSpeedDials = [
+        { url: "https://github.com", favicon: "https://github.com/favicon.ico" },
+        { url: "https://www.pixiv.net", favicon: "https://www.pixiv.net/favicon.ico" },
+        { url: "https://x.com", favicon: "https://x.com/favicon.ico" },
+        { url: "https://www.youtube.com", favicon: "https://www.youtube.com/favicon.ico" },
+        { url: "https://www.twitch.tv", favicon: "https://www.twitch.tv/favicon.ico" },
+        { url: "https://www.amazon.co.jp", favicon: "https://www.amazon.co.jp/favicon.ico" },
+      ];
+      speedDials.set(defaultSpeedDials);
+      await chrome.storage.local.set({ speedDials: defaultSpeedDials });
     }
   });
 
@@ -153,13 +166,6 @@
     for (let favorite of currentFavorites) {
       chrome.tabs.create({ url: favorite.url, active: false });
     }
-  }
-
-  async function exportLinks() {
-    const urls = $favorites.map(favorite => `<a href="${favorite.url}" target="_blank">${favorite.url}</a>`).join('<br>');
-    const blob = new Blob([urls], {type: 'text/html'});
-    const url = URL.createObjectURL(blob);
-    window.open(url, '_blank');
   }
 
   async function addSpeedDial() {
@@ -277,7 +283,6 @@
     <button class="button" on:click={addFavorite}>お気に入り追加</button>
     <!-- <button class="button" on:click={openAllFavorites}>すべて開く</button> -->
     <!-- <button class="button" on:click={importOpenTabs}>開いているタブをすべて登録</button> -->
-    <button class="button" on:click={exportLinks}>エクスポート</button>
     <button class="button" on:click={addSpeedDial}>スピードダイヤル追加</button>
     <button class="button" on:click={clearFavorites}>すべて削除</button>
 
