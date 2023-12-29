@@ -278,7 +278,7 @@ a:hover {
 .speed-dial-grid {
     padding-top: 45px;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(35px , 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(30px , 1fr));
     gap: 10px;
     background: transparent;
     padding-bottom: 20px;
@@ -358,7 +358,6 @@ a:hover {
   }
 
 input[type="file"] {
-    width: 100%;
     padding: 10px 15px;
     border: 2px solid transparent;
     border-radius: 4px;
