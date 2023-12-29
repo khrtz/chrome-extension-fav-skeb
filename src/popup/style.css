@@ -71,11 +71,11 @@
 .tag {
     background-color: #e9ecef;
     border: 1px solid #dee2e6;
-    padding: 5px 10px;
+    padding: 4px 8px;
     border-radius: 3px;
     cursor: pointer;
     margin: 2px;
-    font-size: 14px;
+    font-size: 13px;
 }
 
 .tag:focus,
@@ -231,4 +231,56 @@ a:hover {
 
 .icon-button:active {
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.speed-dial-grid {
+    padding-top: 45px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(35px , 1fr));
+    gap: 10px;
+    background: transparent;
+    padding-bottom: 20px;
+}
+  
+.speed-dial-item {
+    position: relative;
+    padding: 0;
+    border: none;
+    background: none;
+}
+
+.speed-dial-icon {
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+}
+  
+.delete-dial-button {
+    position: absolute;
+    top: 0;
+    right: 0;
+    border: none;
+    background: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    border-radius: 50%;
+}
+  
+.speed-dial-item:focus-within .speed-dial-icon,
+.speed-dial-item:hover .speed-dial-icon {
+    outline: 3px solid #ffbf47;
+    outline-offset: 2px;
+}
+  
+.speed-dial-item:focus-within .delete-dial-button,
+.speed-dial-item:hover .delete-dial-button {
+    display: block;
+}
+
+.delete-dial-button {
+    display: none;
+}
+
+.page-button.active {
+    background-color: #007bff;
+    color: white;
 }
